@@ -105,19 +105,31 @@ export function CategoryManager() {
 
         {/* Category list */}
         <div className="space-y-2 max-h-48 overflow-y-auto">
-          {categories.map((cat) => (
-            <div key={cat.id} className="flex items-center gap-2 p-2 rounded border">
-              <span className="size-4 rounded-full" style={{ backgroundColor: cat.color }} />
-              <span className="flex-1">{cat.name}</span>
-              <span className="text-xs text-muted-foreground">{cat.type}</span>
-              <Button variant="ghost" size="icon-xs" onClick={() => handleEdit(cat)}>
-                <Pencil className="size-3" />
-              </Button>
-              <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(cat.id)}>
-                <Trash2 className="size-3" />
-              </Button>
-            </div>
-          ))}
+          {categories.map((cat) => {
+            const isRunning = timer.isRunning && timer.categoryId === cat.id;
+            return (
+              <div key={cat.id} className="flex items-center gap-2 p-2 rounded border">
+                <span className="size-4 rounded-full" style={{ backgroundColor: cat.color }} />
+                <span className="flex-1">{cat.name}</span>
+                <span className="text-xs text-muted-foreground">{cat.type}</span>
+                {isRunning && (
+                  <span className="text-xs text-primary animate-pulse">●</span>
+                )}
+                <Button variant="ghost" size="icon-xs" onClick={() => handleEdit(cat)}>
+                  <Pencil className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => handleDelete(cat.id)}
+                  disabled={isRunning}
+                  title={isRunning ? "Cannot delete while timer is running" : undefined}
+                >
+                  <Trash2 className="size-3" />
+                </Button>
+              </div>
+            );
+          })}
         </div>
 
         {/* Add/Edit form */}
@@ -179,7 +191,8 @@ export function CategoryManager() {
             <Button
               variant="outline"
               onClick={() => setCategories(DEFAULT_CATEGORIES)}
-              title="Reset to defaults"
+              disabled={timer.isRunning && !DEFAULT_CATEGORIES.some((c) => c.id === timer.categoryId)}
+              title={timer.isRunning && !DEFAULT_CATEGORIES.some((c) => c.id === timer.categoryId) ? "Cannot reset: running category would be deleted" : "Reset to defaults"}
             >
               <RotateCcw className="size-4" />
             </Button>

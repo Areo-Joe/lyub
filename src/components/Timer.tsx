@@ -58,19 +58,22 @@ export function Timer() {
   };
 
   const handleStop = () => {
-    if (!timer.startTime || !timer.categoryId) return;
+    if (!timer.startTime) return;
 
-    const endTime = Date.now();
-    const newActivity: Activity = {
-      id: crypto.randomUUID(),
-      categoryId: timer.categoryId,
-      description: timer.description || "",
-      startTime: timer.startTime,
-      endTime,
-      date: formatDate(new Date(timer.startTime)),
-    };
+    // Only save activity if category still exists
+    if (timer.categoryId) {
+      const endTime = Date.now();
+      const newActivity: Activity = {
+        id: crypto.randomUUID(),
+        categoryId: timer.categoryId,
+        description: timer.description || "",
+        startTime: timer.startTime,
+        endTime,
+        date: formatDate(new Date(timer.startTime)),
+      };
+      setActivities([newActivity, ...activities]);
+    }
 
-    setActivities([newActivity, ...activities]); // Most recent first
     setTimer({
       ...timer,
       isRunning: false,
