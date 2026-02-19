@@ -17,9 +17,9 @@ export interface Activity {
   date: string; // YYYY-MM-DD for easy grouping
 }
 
-// Helper to compute duration in minutes
+// Helper to compute duration in seconds (most precise unit from ms timestamps)
 export function getActivityDuration(activity: Activity): number {
-  return Math.round((activity.endTime - activity.startTime) / 60000);
+  return Math.round((activity.endTime - activity.startTime) / 1000);
 }
 
 // Helper to format date as YYYY-MM-DD (local timezone)

@@ -2,6 +2,7 @@ import { useState } from "react";
 import "./index.css";
 import { Timer } from "@/components/Timer";
 import { ActivityHistory } from "@/components/ActivityHistory";
+import { Stats } from "@/components/Stats";
 import { BottomNav, type TabId } from "@/components/BottomNav";
 
 export function App() {
@@ -18,11 +19,7 @@ export function App() {
       <main className="flex-1 w-full max-w-md px-4 py-6">
         {activeTab === "timer" && <Timer />}
         {activeTab === "history" && <ActivityHistory />}
-        {activeTab === "stats" && (
-          <div className="text-center text-muted-foreground py-12">
-            Stats coming soon...
-          </div>
-        )}
+        {activeTab === "stats" && <Stats />}
       </main>
 
       {/* Bottom navigation */}
