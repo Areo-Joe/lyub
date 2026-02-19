@@ -82,7 +82,7 @@ export function Timer() {
   const selectedCategory = categories.find((c) => c.id === timer.categoryId);
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col items-center gap-6 py-8">
       <div className="text-6xl font-mono tabular-nums">{formatTime(elapsed)}</div>
 
       {/* Category selector with settings */}
