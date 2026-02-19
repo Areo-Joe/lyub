@@ -1,6 +1,7 @@
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
-import { timerAtom, categoriesAtom } from "@/atoms";
+import { timerAtom, categoriesAtom, activitiesAtom } from "@/atoms";
+import { formatDate, type Activity } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -22,6 +23,7 @@ function formatTime(seconds: number): string {
 export function Timer() {
   const [timer, setTimer] = useAtom(timerAtom);
   const [categories] = useAtom(categoriesAtom);
+  const [activities, setActivities] = useAtom(activitiesAtom);
   const [elapsed, setElapsed] = useState(0);
 
   // Calculate elapsed time from startTime
@@ -56,12 +58,25 @@ export function Timer() {
   };
 
   const handleStop = () => {
+    if (!timer.startTime || !timer.categoryId) return;
+
+    const endTime = Date.now();
+    const newActivity: Activity = {
+      id: crypto.randomUUID(),
+      categoryId: timer.categoryId,
+      description: timer.description || "",
+      startTime: timer.startTime,
+      endTime,
+      date: formatDate(new Date(timer.startTime)),
+    };
+
+    setActivities([newActivity, ...activities]); // Most recent first
     setTimer({
       ...timer,
       isRunning: false,
       startTime: null,
+      description: "",
     });
-    // TODO: Save activity
   };
 
   const selectedCategory = categories.find((c) => c.id === timer.categoryId);
