@@ -3,13 +3,7 @@ import { useEffect, useState } from "react";
 import { timerAtom, categoriesAtom, activitiesAtom } from "@/atoms";
 import { formatDate, type Activity } from "@/types";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CategoryPicker } from "@/components/CategoryPicker";
 import { CategoryManager } from "@/components/CategoryManager";
 
 // Format seconds to HH:MM:SS
@@ -25,6 +19,7 @@ export function Timer() {
   const [categories] = useAtom(categoriesAtom);
   const [activities, setActivities] = useAtom(activitiesAtom);
   const [elapsed, setElapsed] = useState(0);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Calculate elapsed time from startTime
   useEffect(() => {
@@ -33,10 +28,8 @@ export function Timer() {
       return;
     }
 
-    // Initial calculation
     setElapsed(Math.floor((Date.now() - timer.startTime) / 1000));
 
-    // Update every second
     const interval = setInterval(() => {
       setElapsed(Math.floor((Date.now() - timer.startTime!) / 1000));
     }, 1000);
@@ -44,23 +37,19 @@ export function Timer() {
     return () => clearInterval(interval);
   }, [timer.isRunning, timer.startTime]);
 
-  const handleCategoryChange = (categoryId: string) => {
-    setTimer({ ...timer, categoryId });
-  };
-
-  const handleStart = () => {
-    if (!timer.categoryId) return; // Require category
+  const handleStartWithCategory = (categoryId: string) => {
     setTimer({
       ...timer,
+      categoryId,
       isRunning: true,
       startTime: Date.now(),
     });
+    setPickerOpen(false);
   };
 
   const handleStop = () => {
     if (!timer.startTime) return;
 
-    // Only save activity if category still exists
     if (timer.categoryId) {
       const endTime = Date.now();
       const newActivity: Activity = {
@@ -82,59 +71,44 @@ export function Timer() {
     });
   };
 
-  const selectedCategory = categories.find((c) => c.id === timer.categoryId);
+  const runningCategory = categories.find((c) => c.id === timer.categoryId);
 
   return (
     <div className="flex flex-col items-center gap-6 py-8">
       <div className="text-6xl font-mono tabular-nums">{formatTime(elapsed)}</div>
 
-      {/* Category selector with settings */}
-      <div className="flex items-center gap-2">
-        <Select
-          value={timer.categoryId || ""}
-          onValueChange={handleCategoryChange}
-          disabled={timer.isRunning}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select category">
-              {selectedCategory && (
-                <span className="flex items-center gap-2">
-                  <span
-                    className="size-3 rounded-full"
-                    style={{ backgroundColor: selectedCategory.color }}
-                  />
-                  {selectedCategory.name}
-                </span>
-              )}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                <span
-                  className="size-3 rounded-full"
-                  style={{ backgroundColor: category.color }}
-                />
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <CategoryManager />
-      </div>
+      {/* Show current category when running */}
+      {timer.isRunning && runningCategory && (
+        <div className="flex items-center gap-2 text-lg">
+          <span
+            className="size-4 rounded-full"
+            style={{ backgroundColor: runningCategory.color }}
+          />
+          <span>{runningCategory.name}</span>
+        </div>
+      )}
 
       {/* Start/Stop buttons */}
-      <div className="flex gap-4">
+      <div className="flex gap-4 items-center">
         {timer.isRunning ? (
           <Button variant="destructive" size="lg" onClick={handleStop}>
             Stop
           </Button>
         ) : (
-          <Button size="lg" onClick={handleStart} disabled={!timer.categoryId}>
-            Start
-          </Button>
+          <>
+            <Button size="lg" onClick={() => setPickerOpen(true)}>
+              Start
+            </Button>
+            <CategoryManager />
+          </>
         )}
       </div>
+
+      <CategoryPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={handleStartWithCategory}
+      />
     </div>
   );
 }
