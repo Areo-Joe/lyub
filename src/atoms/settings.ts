@@ -4,6 +4,11 @@ export type TimeUnit = "seconds" | "minutes" | "hours";
 
 export const timeUnitAtom = atomWithStorage<TimeUnit>("lyub-time-unit", "minutes");
 
+// Theme settings
+export type Theme = "light" | "dark" | "system";
+
+export const themeAtom = atomWithStorage<Theme>("lyub-theme", "system");
+
 export const TIME_UNIT_OPTIONS: { value: TimeUnit; label: string }[] = [
   { value: "seconds", label: "Sec" },
   { value: "minutes", label: "Min" },
