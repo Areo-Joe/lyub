@@ -1,4 +1,5 @@
 import { useAtom } from "jotai";
+import { Trash2 } from "lucide-react";
 import {
   activitiesAtom,
   categoriesAtom,
@@ -7,6 +8,18 @@ import {
   formatDuration,
 } from "@/atoms";
 import { getActivityDuration, type Activity } from "@/types";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Format time as HH:MM
 function formatTime(timestamp: number): string {
@@ -36,11 +49,19 @@ function groupByDate(activities: Activity[]): Map<string, Activity[]> {
 }
 
 export function ActivityHistory() {
-  const [activities] = useAtom(activitiesAtom);
+  const [activities, setActivities] = useAtom(activitiesAtom);
   const [categories] = useAtom(categoriesAtom);
   const [timeUnit, setTimeUnit] = useAtom(timeUnitAtom);
 
   const getCategoryById = (id: string) => categories.find((c) => c.id === id);
+
+  const handleDelete = (id: string) => {
+    setActivities(activities.filter((a) => a.id !== id));
+  };
+
+  const handleClearAll = () => {
+    setActivities([]);
+  };
   const grouped = groupByDate(activities);
 
   if (activities.length === 0) {
@@ -55,20 +76,43 @@ export function ActivityHistory() {
     <div className="w-full max-w-md space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Activity History</h2>
-        <div className="flex gap-1 text-xs">
-          {TIME_UNIT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setTimeUnit(opt.value)}
-              className={`px-2 py-1 rounded transition-colors ${
-                timeUnit === opt.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted hover:bg-muted/80"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 text-xs">
+            {TIME_UNIT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setTimeUnit(opt.value)}
+                className={`px-2 py-1 rounded transition-colors ${
+                  timeUnit === opt.value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+                Clear
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear all history?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete all {activities.length} activities. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Clear All
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
       
@@ -115,6 +159,14 @@ export function ActivityHistory() {
                     <span className="text-sm font-medium w-14 text-right">
                       {formatDuration(durationSecs, timeUnit)}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => handleDelete(activity.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
                   </div>
                 );
               })}
