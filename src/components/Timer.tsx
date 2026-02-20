@@ -20,6 +20,12 @@ export function Timer() {
   const [activities, setActivities] = useAtom(activitiesAtom);
   const [elapsed, setElapsed] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Wait for localStorage hydration
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   // Calculate elapsed time from startTime
   useEffect(() => {
@@ -72,6 +78,15 @@ export function Timer() {
   };
 
   const runningCategory = categories.find((c) => c.id === timer.categoryId);
+
+  // Show placeholder while loading from localStorage
+  if (!hydrated) {
+    return (
+      <div className="flex flex-col items-center gap-6 py-8">
+        <div className="text-6xl font-mono tabular-nums text-muted-foreground">--:--:--</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-6 py-8">
