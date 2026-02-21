@@ -148,10 +148,10 @@ export function StatsCalendar() {
           onMonthChange={setMonth}
           modifiers={modifiers}
           modifiersClassNames={{
-            level1: "bg-blue-200 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100",
-            level2: "bg-blue-300 dark:bg-blue-800/60 text-blue-900 dark:text-blue-100",
-            level3: "bg-blue-500 dark:bg-blue-600/80 text-white",
-            level4: "bg-blue-700 dark:bg-blue-400 text-white dark:text-blue-950",
+            level1: "[&_button]:bg-blue-200 [&_button]:dark:bg-blue-900/40 [&_button]:text-blue-900 [&_button]:dark:text-blue-100",
+            level2: "[&_button]:bg-blue-300 [&_button]:dark:bg-blue-800/60 [&_button]:text-blue-900 [&_button]:dark:text-blue-100",
+            level3: "[&_button]:bg-blue-500 [&_button]:dark:bg-blue-600/80 [&_button]:text-white",
+            level4: "[&_button]:bg-blue-700 [&_button]:dark:bg-blue-400 [&_button]:text-white [&_button]:dark:text-blue-950",
           }}
         />
       </div>
