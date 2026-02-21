@@ -12,8 +12,11 @@ import {
   CATEGORY_TYPE_CONFIG,
   type CategoryType,
   type Activity,
+  type Category,
 } from "@/types";
 import { Calendar } from "@/components/ui/calendar";
+
+type GroupBy = "type" | "category";
 
 // Intensity levels (in seconds)
 const INTENSITY_LEVELS = [
@@ -31,7 +34,11 @@ function getIntensityLevel(seconds: number): number {
   return 4;
 }
 
-export function StatsCalendar() {
+interface StatsCalendarProps {
+  groupBy: GroupBy;
+}
+
+export function StatsCalendar({ groupBy }: StatsCalendarProps) {
   const [activities] = useAtom(activitiesAtom);
   const [categories] = useAtom(categoriesAtom);
   const [timeUnit] = useAtom(timeUnitAtom);
@@ -70,10 +77,10 @@ export function StatsCalendar() {
   // Get selected day's data
   const selectedDayData = useMemo(() => {
     if (!selectedDate) return null;
-    
+
     const dateStr = formatDate(selectedDate);
     const dayActivities = activities.filter((a) => a.date === dateStr);
-    
+
     if (dayActivities.length === 0) return null;
 
     // Calculate totals by type
@@ -83,17 +90,25 @@ export function StatsCalendar() {
       rest: 0,
       personal: 0,
     };
-    
+
+    // Calculate totals by category
+    const byCategory: Record<string, number> = {};
+
     for (const activity of dayActivities) {
       const cat = categories.find((c) => c.id === activity.categoryId);
       if (cat) {
         byType[cat.type] += getActivityDuration(activity);
       }
+      // By category
+      if (!byCategory[activity.categoryId]) {
+        byCategory[activity.categoryId] = 0;
+      }
+      byCategory[activity.categoryId] += getActivityDuration(activity);
     }
 
     const total = Object.values(byType).reduce((a, b) => a + b, 0);
-    
-    return { byType, total, activities: dayActivities };
+
+    return { byType, byCategory, total, activities: dayActivities };
   }, [selectedDate, activities, categories]);
 
   return (
@@ -139,6 +154,8 @@ export function StatsCalendar() {
           date={selectedDate}
           data={selectedDayData}
           timeUnit={timeUnit}
+          groupBy={groupBy}
+          categories={categories}
         />
       )}
     </div>
@@ -150,14 +167,19 @@ function DayDetail({
   date,
   data,
   timeUnit,
+  groupBy,
+  categories,
 }: {
   date: Date;
   data: {
     byType: Record<CategoryType, number>;
+    byCategory: Record<string, number>;
     total: number;
     activities: Activity[];
   } | null;
   timeUnit: "seconds" | "minutes" | "hours";
+  groupBy: GroupBy;
+  categories: Category[];
 }) {
   const dateLabel = date.toLocaleDateString("en-US", {
     weekday: "short",
@@ -174,6 +196,8 @@ function DayDetail({
     );
   }
 
+  const getCategory = (categoryId: string) => categories.find((c) => c.id === categoryId);
+
   return (
     <div className="rounded-lg border p-4 space-y-3">
       <div className="flex justify-between items-center">
@@ -184,29 +208,58 @@ function DayDetail({
       </div>
 
       <div className="space-y-2">
-        {(Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => {
-          const seconds = data.byType[type];
-          if (seconds === 0) return null;
-          const config = CATEGORY_TYPE_CONFIG[type];
-          const pct = (seconds / data.total) * 100;
+        {groupBy === "type" ? (
+          // By Type
+          (Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => {
+            const seconds = data.byType[type];
+            if (seconds === 0) return null;
+            const config = CATEGORY_TYPE_CONFIG[type];
+            const pct = (seconds / data.total) * 100;
 
-          return (
-            <div key={type} className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span>{config.label}</span>
-                <span className="text-muted-foreground">
-                  {formatDuration(seconds, timeUnit)}
-                </span>
+            return (
+              <div key={type} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>{config.label}</span>
+                  <span className="text-muted-foreground">
+                    {formatDuration(seconds, timeUnit)}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${pct}%`, backgroundColor: config.color }}
+                  />
+                </div>
               </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${pct}%`, backgroundColor: config.color }}
-                />
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        ) : (
+          // By Category
+          Object.entries(data.byCategory)
+            .sort(([, a], [, b]) => b - a)
+            .map(([catId, seconds]) => {
+              const cat = getCategory(catId);
+              if (!cat) return null;
+              const pct = (seconds / data.total) * 100;
+
+              return (
+                <div key={catId} className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span>{cat.name}</span>
+                    <span className="text-muted-foreground">
+                      {formatDuration(seconds, timeUnit)}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${pct}%`, backgroundColor: cat.color }}
+                    />
+                  </div>
+                </div>
+              );
+            })
+        )}
       </div>
     </div>
   );

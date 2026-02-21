@@ -13,10 +13,13 @@ import {
   formatDate,
   CATEGORY_TYPE_CONFIG,
   type CategoryType,
+  type Activity,
+  type Category,
 } from "@/types";
 import { StatsCalendar } from "@/components/StatsCalendar";
 
 type StatsView = "summary" | "calendar";
+type GroupBy = "type" | "category";
 
 // Get start of week (Monday)
 function getWeekStart(date: Date): Date {
@@ -30,6 +33,7 @@ function getWeekStart(date: Date): Date {
 
 export function Stats() {
   const [view, setView] = useState<StatsView>("summary");
+  const [groupBy, setGroupBy] = useState<GroupBy>("type");
   const [activities] = useAtom(activitiesAtom);
   const [categories] = useAtom(categoriesAtom);
   const [timeUnit, setTimeUnit] = useAtom(timeUnitAtom);
@@ -69,14 +73,33 @@ export function Stats() {
     return totals;
   };
 
-  const todayTotals = calcTotalsByType(todayActivities);
-  const weekTotals = calcTotalsByType(weekActivities);
+  // Calculate totals by category
+  const calcTotalsByCategory = (acts: Activity[]) => {
+    const totals: Record<string, number> = {};
+    for (const a of acts) {
+      if (!totals[a.categoryId]) {
+        totals[a.categoryId] = 0;
+      }
+      totals[a.categoryId] += getActivityDuration(a);
+    }
+    return totals;
+  };
 
-  const todayTotal = Object.values(todayTotals).reduce((a, b) => a + b, 0);
-  const weekTotal = Object.values(weekTotals).reduce((a, b) => a + b, 0);
+  // Get category by id
+  const getCategory = (categoryId: string): Category | undefined => {
+    return categories.find((c) => c.id === categoryId);
+  };
 
-  // Render a stat bar
-  const StatBar = ({
+  const todayTotalsByType = calcTotalsByType(todayActivities);
+  const weekTotalsByType = calcTotalsByType(weekActivities);
+  const todayTotalsByCat = calcTotalsByCategory(todayActivities);
+  const weekTotalsByCat = calcTotalsByCategory(weekActivities);
+
+  const todayTotal = Object.values(todayTotalsByType).reduce((a, b) => a + b, 0);
+  const weekTotal = Object.values(weekTotalsByType).reduce((a, b) => a + b, 0);
+
+  // Render a stat bar for type
+  const TypeStatBar = ({
     type,
     seconds,
     total,
@@ -103,10 +126,39 @@ export function Stats() {
     );
   };
 
+  // Render a stat bar for category
+  const CategoryStatBar = ({
+    categoryId,
+    seconds,
+    total,
+  }: {
+    categoryId: string;
+    seconds: number;
+    total: number;
+  }) => {
+    const cat = getCategory(categoryId);
+    if (!cat) return null;
+    const pct = total > 0 ? (seconds / total) * 100 : 0;
+    return (
+      <div className="space-y-1">
+        <div className="flex justify-between text-sm">
+          <span>{cat.name}</span>
+          <span className="text-muted-foreground">{formatDuration(seconds, timeUnit)}</span>
+        </div>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${pct}%`, backgroundColor: cat.color }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full max-w-md space-y-6">
-      {/* Header with view toggle and time unit */}
-      <div className="flex justify-between items-center">
+      {/* Header with view toggle, group by, and time unit */}
+      <div className="flex justify-between items-center flex-wrap gap-2">
         {/* View toggle */}
         <div className="flex gap-1">
           <button
@@ -133,6 +185,30 @@ export function Stats() {
           </button>
         </div>
 
+        {/* Group by toggle */}
+        <div className="flex gap-1 text-xs">
+          <button
+            onClick={() => setGroupBy("type")}
+            className={`px-2 py-1 rounded transition-colors ${
+              groupBy === "type"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80"
+            }`}
+          >
+            By Type
+          </button>
+          <button
+            onClick={() => setGroupBy("category")}
+            className={`px-2 py-1 rounded transition-colors ${
+              groupBy === "category"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80"
+            }`}
+          >
+            By Category
+          </button>
+        </div>
+
         {/* Time unit selector */}
         <div className="flex gap-1 text-xs">
           {TIME_UNIT_OPTIONS.map((opt) => (
@@ -152,49 +228,64 @@ export function Stats() {
       </div>
 
       {/* Calendar view */}
-      {view === "calendar" && <StatsCalendar />}
+      {view === "calendar" && <StatsCalendar groupBy={groupBy} />}
 
       {/* Summary view */}
       {view === "summary" && (
         <>
+          {/* Today */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-medium">Today</h3>
+              <span className="text-sm text-muted-foreground">
+                Total: {formatDuration(todayTotal, timeUnit)}
+              </span>
+            </div>
+            {todayTotal === 0 ? (
+              <p className="text-muted-foreground text-sm">No activities recorded today.</p>
+            ) : (
+              <div className="space-y-3">
+                {groupBy === "type" ? (
+                  (Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => (
+                    <TypeStatBar key={type} type={type} seconds={todayTotalsByType[type]} total={todayTotal} />
+                  ))
+                ) : (
+                  Object.entries(todayTotalsByCat)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([catId, seconds]) => (
+                      <CategoryStatBar key={catId} categoryId={catId} seconds={seconds} total={todayTotal} />
+                    ))
+                )}
+              </div>
+            )}
+          </section>
 
-      {/* Today */}
-      <section className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-medium">Today</h3>
-          <span className="text-sm text-muted-foreground">
-            Total: {formatDuration(todayTotal, timeUnit)}
-          </span>
-        </div>
-        {todayTotal === 0 ? (
-          <p className="text-muted-foreground text-sm">No activities recorded today.</p>
-        ) : (
-          <div className="space-y-3">
-            {(Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => (
-              <StatBar key={type} type={type} seconds={todayTotals[type]} total={todayTotal} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* This Week */}
-      <section className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-medium">This Week</h3>
-          <span className="text-sm text-muted-foreground">
-            Total: {formatDuration(weekTotal, timeUnit)}
-          </span>
-        </div>
-        {weekTotal === 0 ? (
-          <p className="text-muted-foreground text-sm">No activities this week.</p>
-        ) : (
-          <div className="space-y-3">
-            {(Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => (
-              <StatBar key={type} type={type} seconds={weekTotals[type]} total={weekTotal} />
-            ))}
-          </div>
-        )}
-      </section>
+          {/* This Week */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-medium">This Week</h3>
+              <span className="text-sm text-muted-foreground">
+                Total: {formatDuration(weekTotal, timeUnit)}
+              </span>
+            </div>
+            {weekTotal === 0 ? (
+              <p className="text-muted-foreground text-sm">No activities this week.</p>
+            ) : (
+              <div className="space-y-3">
+                {groupBy === "type" ? (
+                  (Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => (
+                    <TypeStatBar key={type} type={type} seconds={weekTotalsByType[type]} total={weekTotal} />
+                  ))
+                ) : (
+                  Object.entries(weekTotalsByCat)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([catId, seconds]) => (
+                      <CategoryStatBar key={catId} categoryId={catId} seconds={seconds} total={weekTotal} />
+                    ))
+                )}
+              </div>
+            )}
+          </section>
         </>
       )}
     </div>
