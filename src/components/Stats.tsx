@@ -266,19 +266,22 @@ export function Stats() {
           {/* 7-Day Trend */}
           <div className="rounded-xl border p-4">
             <h3 className="text-sm font-medium text-muted-foreground mb-3">Last 7 Days</h3>
-            <div className="flex items-end justify-between gap-1 h-16">
+            <div className="flex items-end justify-between gap-1.5">
               {dailyTotals.map((day) => {
                 const height = maxDaily > 0 ? (day.total / maxDaily) * 100 : 0;
                 const isToday = day.date === formatDate(new Date());
                 return (
                   <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className={`w-full rounded-t transition-all ${
-                        isToday ? "bg-primary" : "bg-primary/40"
-                      }`}
-                      style={{ height: `${Math.max(height, 4)}%` }}
-                      title={`${day.date}: ${formatDuration(day.total, timeUnit)}`}
-                    />
+                    {/* Bar container with fixed height */}
+                    <div className="h-14 w-full flex items-end">
+                      <div
+                        className={`w-full rounded-t transition-all ${
+                          isToday ? "bg-primary" : "bg-primary/40"
+                        }`}
+                        style={{ height: `${Math.max(height, 4)}%` }}
+                        title={`${day.date}: ${formatDuration(day.total, timeUnit)}`}
+                      />
+                    </div>
                     <span className="text-[10px] text-muted-foreground">
                       {["S", "M", "T", "W", "T", "F", "S"][new Date(day.date + "T00:00:00").getDay()]}
                     </span>
