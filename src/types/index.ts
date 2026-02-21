@@ -1,6 +1,17 @@
 // Activity categories based on Lyubishchev's method
 export type CategoryType = "creative" | "routine" | "rest" | "personal";
 
+// Category type display config (labels and colors)
+export const CATEGORY_TYPE_CONFIG: Record<
+  CategoryType,
+  { label: string; color: string }
+> = {
+  creative: { label: "Creative", color: "#3b82f6" },
+  routine: { label: "Routine", color: "#10b981" },
+  rest: { label: "Rest", color: "#6b7280" },
+  personal: { label: "Personal", color: "#ec4899" },
+};
+
 export interface Category {
   id: string;
   name: string;

@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useAtom } from "jotai";
+import { CalendarDays, BarChart3 } from "lucide-react";
 import {
   activitiesAtom,
   categoriesAtom,
@@ -9,17 +11,12 @@ import {
 import {
   getActivityDuration,
   formatDate,
+  CATEGORY_TYPE_CONFIG,
   type CategoryType,
-  type Activity,
 } from "@/types";
+import { StatsCalendar } from "@/components/StatsCalendar";
 
-// Category type colors and labels
-const TYPE_CONFIG: Record<CategoryType, { label: string; color: string }> = {
-  creative: { label: "Creative Work", color: "#3b82f6" },
-  routine: { label: "Routine Tasks", color: "#10b981" },
-  rest: { label: "Rest", color: "#6b7280" },
-  personal: { label: "Personal", color: "#ec4899" },
-};
+type StatsView = "summary" | "calendar";
 
 // Get start of week (Monday)
 function getWeekStart(date: Date): Date {
@@ -32,6 +29,7 @@ function getWeekStart(date: Date): Date {
 }
 
 export function Stats() {
+  const [view, setView] = useState<StatsView>("summary");
   const [activities] = useAtom(activitiesAtom);
   const [categories] = useAtom(categoriesAtom);
   const [timeUnit, setTimeUnit] = useAtom(timeUnitAtom);
@@ -87,7 +85,7 @@ export function Stats() {
     seconds: number;
     total: number;
   }) => {
-    const config = TYPE_CONFIG[type];
+    const config = CATEGORY_TYPE_CONFIG[type];
     const pct = total > 0 ? (seconds / total) * 100 : 0;
     return (
       <div className="space-y-1">
@@ -106,9 +104,35 @@ export function Stats() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-8">
+    <div className="w-full max-w-md space-y-6">
+      {/* Header with view toggle and time unit */}
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Statistics</h2>
+        {/* View toggle */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => setView("summary")}
+            className={`p-2 rounded transition-colors ${
+              view === "summary"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80"
+            }`}
+            title="Summary"
+          >
+            <BarChart3 className="size-4" />
+          </button>
+          <button
+            onClick={() => setView("calendar")}
+            className={`p-2 rounded transition-colors ${
+              view === "calendar"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80"
+            }`}
+            title="Calendar"
+          >
+            <CalendarDays className="size-4" />
+          </button>
+        </div>
+
         {/* Time unit selector */}
         <div className="flex gap-1 text-xs">
           {TIME_UNIT_OPTIONS.map((opt) => (
@@ -127,6 +151,13 @@ export function Stats() {
         </div>
       </div>
 
+      {/* Calendar view */}
+      {view === "calendar" && <StatsCalendar />}
+
+      {/* Summary view */}
+      {view === "summary" && (
+        <>
+
       {/* Today */}
       <section className="space-y-4">
         <div className="flex justify-between items-center">
@@ -139,7 +170,7 @@ export function Stats() {
           <p className="text-muted-foreground text-sm">No activities recorded today.</p>
         ) : (
           <div className="space-y-3">
-            {(Object.keys(TYPE_CONFIG) as CategoryType[]).map((type) => (
+            {(Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => (
               <StatBar key={type} type={type} seconds={todayTotals[type]} total={todayTotal} />
             ))}
           </div>
@@ -158,12 +189,14 @@ export function Stats() {
           <p className="text-muted-foreground text-sm">No activities this week.</p>
         ) : (
           <div className="space-y-3">
-            {(Object.keys(TYPE_CONFIG) as CategoryType[]).map((type) => (
+            {(Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => (
               <StatBar key={type} type={type} seconds={weekTotals[type]} total={weekTotal} />
             ))}
           </div>
         )}
       </section>
+        </>
+      )}
     </div>
   );
 }
