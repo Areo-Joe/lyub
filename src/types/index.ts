@@ -51,3 +51,25 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: "cat-6", name: "Interests", type: "personal", color: "#ec4899" },
 ];
 
+// Calculate streak (consecutive days with activity)
+export function calculateStreak(activities: Activity[]): number {
+  if (activities.length === 0) return 0;
+
+  const dates = new Set(activities.map((a) => a.date));
+  const today = formatDate(new Date());
+  const yesterday = formatDate(new Date(Date.now() - 86400000));
+
+  // Start counting from today or yesterday
+  if (!dates.has(today) && !dates.has(yesterday)) return 0;
+
+  let streak = 0;
+  let currentDate = dates.has(today) ? new Date() : new Date(Date.now() - 86400000);
+
+  while (dates.has(formatDate(currentDate))) {
+    streak++;
+    currentDate.setDate(currentDate.getDate() - 1);
+  }
+
+  return streak;
+}
+

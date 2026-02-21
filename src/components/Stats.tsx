@@ -1,16 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAtom } from "jotai";
-import { CalendarDays, BarChart3 } from "lucide-react";
+import { CalendarDays, BarChart3, Flame, Clock, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import {
   activitiesAtom,
   categoriesAtom,
   timeUnitAtom,
-  TIME_UNIT_OPTIONS,
   formatDuration,
 } from "@/atoms";
 import {
   getActivityDuration,
   formatDate,
+  calculateStreak,
   CATEGORY_TYPE_CONFIG,
   type CategoryType,
   type Activity,
@@ -18,8 +18,8 @@ import {
 } from "@/types";
 import { StatsCalendar } from "@/components/StatsCalendar";
 
-type StatsView = "summary" | "calendar";
-type GroupBy = "type" | "category";
+type StatsView = "overview" | "calendar";
+type Period = "today" | "week" | "month";
 
 // Get start of week (Monday)
 function getWeekStart(date: Date): Date {
@@ -31,15 +31,83 @@ function getWeekStart(date: Date): Date {
   return d;
 }
 
+// Get start of month
+function getMonthStart(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// Get date range for a period
+function getPeriodRange(period: Period): { start: Date; end: Date } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (period) {
+    case "today":
+      return { start: today, end: now };
+    case "week":
+      return { start: getWeekStart(today), end: now };
+    case "month":
+      return { start: getMonthStart(today), end: now };
+  }
+}
+
+// Get previous period range for comparison
+function getPreviousPeriodRange(period: Period): { start: Date; end: Date } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (period) {
+    case "today": {
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return { start: yesterday, end: yesterday };
+    }
+    case "week": {
+      const weekStart = getWeekStart(today);
+      const prevWeekStart = new Date(weekStart);
+      prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+      const prevWeekEnd = new Date(weekStart);
+      prevWeekEnd.setDate(prevWeekEnd.getDate() - 1);
+      return { start: prevWeekStart, end: prevWeekEnd };
+    }
+    case "month": {
+      const monthStart = getMonthStart(today);
+      const prevMonthStart = new Date(monthStart);
+      prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+      const prevMonthEnd = new Date(monthStart);
+      prevMonthEnd.setDate(prevMonthEnd.getDate() - 1);
+      return { start: prevMonthStart, end: prevMonthEnd };
+    }
+  }
+}
+
 export function Stats() {
-  const [view, setView] = useState<StatsView>("summary");
-  const [groupBy, setGroupBy] = useState<GroupBy>("type");
+  const [view, setView] = useState<StatsView>("overview");
+  const [period, setPeriod] = useState<Period>("today");
+  const [expandedType, setExpandedType] = useState<CategoryType | null>(null);
   const [activities] = useAtom(activitiesAtom);
   const [categories] = useAtom(categoriesAtom);
-  const [timeUnit, setTimeUnit] = useAtom(timeUnitAtom);
+  const [timeUnit] = useAtom(timeUnitAtom);
 
-  const today = formatDate(new Date());
-  const weekStart = getWeekStart(new Date());
+  // Memoize period ranges to avoid recalculating every render
+  const periodRange = useMemo(() => getPeriodRange(period), [period]);
+  const prevPeriodRange = useMemo(() => getPreviousPeriodRange(period), [period]);
+
+  // Filter activities by date range
+  const periodActivities = useMemo(() => {
+    const startStr = formatDate(periodRange.start);
+    const endStr = formatDate(periodRange.end);
+    return activities.filter((a) => a.date >= startStr && a.date <= endStr);
+  }, [activities, periodRange]);
+
+  const prevPeriodActivities = useMemo(() => {
+    const startStr = formatDate(prevPeriodRange.start);
+    const endStr = formatDate(prevPeriodRange.end);
+    return activities.filter((a) => a.date >= startStr && a.date <= endStr);
+  }, [activities, prevPeriodRange]);
 
   // Get category type for an activity
   const getCategoryType = (categoryId: string): CategoryType | null => {
@@ -47,28 +115,14 @@ export function Stats() {
     return cat?.type || null;
   };
 
-  // Filter activities for today
-  const todayActivities = activities.filter((a) => a.date === today);
-
-  // Filter activities for this week
-  const weekActivities = activities.filter((a) => {
-    const actDate = new Date(a.date + "T00:00:00");
-    return actDate >= weekStart;
-  });
-
   // Calculate totals by type
   const calcTotalsByType = (acts: Activity[]) => {
     const totals: Record<CategoryType, number> = {
-      creative: 0,
-      routine: 0,
-      rest: 0,
-      personal: 0,
+      creative: 0, routine: 0, rest: 0, personal: 0,
     };
     for (const a of acts) {
       const type = getCategoryType(a.categoryId);
-      if (type) {
-        totals[type] += getActivityDuration(a);
-      }
+      if (type) totals[type] += getActivityDuration(a);
     }
     return totals;
   };
@@ -77,215 +131,256 @@ export function Stats() {
   const calcTotalsByCategory = (acts: Activity[]) => {
     const totals: Record<string, number> = {};
     for (const a of acts) {
-      if (!totals[a.categoryId]) {
-        totals[a.categoryId] = 0;
-      }
-      totals[a.categoryId] += getActivityDuration(a);
+      totals[a.categoryId] = (totals[a.categoryId] || 0) + getActivityDuration(a);
     }
     return totals;
   };
 
-  // Get category by id
-  const getCategory = (categoryId: string): Category | undefined => {
-    return categories.find((c) => c.id === categoryId);
-  };
+  const totalsByType = calcTotalsByType(periodActivities);
+  const prevTotalsByType = calcTotalsByType(prevPeriodActivities);
+  const totalsByCat = calcTotalsByCategory(periodActivities);
 
-  const todayTotalsByType = calcTotalsByType(todayActivities);
-  const weekTotalsByType = calcTotalsByType(weekActivities);
-  const todayTotalsByCat = calcTotalsByCategory(todayActivities);
-  const weekTotalsByCat = calcTotalsByCategory(weekActivities);
+  const totalSeconds = Object.values(totalsByType).reduce((a, b) => a + b, 0);
+  const prevTotalSeconds = Object.values(prevTotalsByType).reduce((a, b) => a + b, 0);
 
-  const todayTotal = Object.values(todayTotalsByType).reduce((a, b) => a + b, 0);
-  const weekTotal = Object.values(weekTotalsByType).reduce((a, b) => a + b, 0);
+  // Streak
+  const streak = useMemo(() => calculateStreak(activities), [activities]);
 
-  // Render a stat bar for type
-  const TypeStatBar = ({
-    type,
-    seconds,
-    total,
-  }: {
-    type: CategoryType;
-    seconds: number;
-    total: number;
-  }) => {
-    const config = CATEGORY_TYPE_CONFIG[type];
-    const pct = total > 0 ? (seconds / total) * 100 : 0;
-    return (
-      <div className="space-y-1">
-        <div className="flex justify-between text-sm">
-          <span>{config.label}</span>
-          <span className="text-muted-foreground">{formatDuration(seconds, timeUnit)}</span>
-        </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${pct}%`, backgroundColor: config.color }}
-          />
-        </div>
-      </div>
-    );
-  };
+  // Calculate daily totals for trend (last 7 days)
+  const dailyTotals = useMemo(() => {
+    const last7Days: { date: string; total: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = formatDate(date);
+      const dayActs = activities.filter((a) => a.date === dateStr);
+      const total = dayActs.reduce((sum, a) => sum + getActivityDuration(a), 0);
+      last7Days.push({ date: dateStr, total });
+    }
+    return last7Days;
+  }, [activities]);
 
-  // Render a stat bar for category
-  const CategoryStatBar = ({
-    categoryId,
-    seconds,
-    total,
-  }: {
-    categoryId: string;
-    seconds: number;
-    total: number;
-  }) => {
-    const cat = getCategory(categoryId);
-    if (!cat) return null;
-    const pct = total > 0 ? (seconds / total) * 100 : 0;
-    return (
-      <div className="space-y-1">
-        <div className="flex justify-between text-sm">
-          <span>{cat.name}</span>
-          <span className="text-muted-foreground">{formatDuration(seconds, timeUnit)}</span>
-        </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${pct}%`, backgroundColor: cat.color }}
-          />
-        </div>
-      </div>
-    );
+  const maxDaily = Math.max(...dailyTotals.map((d) => d.total), 1);
+
+  // Percent change
+  const percentChange = prevTotalSeconds > 0
+    ? Math.round(((totalSeconds - prevTotalSeconds) / prevTotalSeconds) * 100)
+    : totalSeconds > 0 ? 100 : 0;
+
+  // Get categories for a type
+  const getCategoriesForType = (type: CategoryType) => {
+    return categories.filter((c) => c.type === type);
   };
 
   return (
-    <div className="w-full max-w-md space-y-6">
-      {/* Header with view toggle, group by, and time unit */}
-      <div className="flex justify-between items-center flex-wrap gap-2">
-        {/* View toggle */}
-        <div className="flex gap-1">
-          <button
-            onClick={() => setView("summary")}
-            className={`p-2 rounded transition-colors ${
-              view === "summary"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            }`}
-            title="Summary"
-          >
-            <BarChart3 className="size-4" />
-          </button>
-          <button
-            onClick={() => setView("calendar")}
-            className={`p-2 rounded transition-colors ${
-              view === "calendar"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            }`}
-            title="Calendar"
-          >
-            <CalendarDays className="size-4" />
-          </button>
-        </div>
-
-        {/* Group by toggle */}
-        <div className="flex gap-1 text-xs">
-          <button
-            onClick={() => setGroupBy("type")}
-            className={`px-2 py-1 rounded transition-colors ${
-              groupBy === "type"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            }`}
-          >
-            By Type
-          </button>
-          <button
-            onClick={() => setGroupBy("category")}
-            className={`px-2 py-1 rounded transition-colors ${
-              groupBy === "category"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            }`}
-          >
-            By Category
-          </button>
-        </div>
-
-        {/* Time unit selector */}
-        <div className="flex gap-1 text-xs">
-          {TIME_UNIT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setTimeUnit(opt.value)}
-              className={`px-2 py-1 rounded transition-colors ${
-                timeUnit === opt.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted hover:bg-muted/80"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+    <div className="w-full max-w-md space-y-4">
+      {/* View Toggle (Top) */}
+      <div className="flex justify-center gap-1">
+        <button
+          onClick={() => setView("overview")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            view === "overview"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted hover:bg-muted/80"
+          }`}
+        >
+          <BarChart3 className="size-4" />
+          Overview
+        </button>
+        <button
+          onClick={() => setView("calendar")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            view === "calendar"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted hover:bg-muted/80"
+          }`}
+        >
+          <CalendarDays className="size-4" />
+          Calendar
+        </button>
       </div>
 
-      {/* Calendar view */}
-      {view === "calendar" && <StatsCalendar groupBy={groupBy} />}
+      {view === "calendar" && <StatsCalendar />}
 
-      {/* Summary view */}
-      {view === "summary" && (
+      {view === "overview" && (
         <>
-          {/* Today */}
-          <section className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-medium">Today</h3>
-              <span className="text-sm text-muted-foreground">
-                Total: {formatDuration(todayTotal, timeUnit)}
-              </span>
-            </div>
-            {todayTotal === 0 ? (
-              <p className="text-muted-foreground text-sm">No activities recorded today.</p>
-            ) : (
-              <div className="space-y-3">
-                {groupBy === "type" ? (
-                  (Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => (
-                    <TypeStatBar key={type} type={type} seconds={todayTotalsByType[type]} total={todayTotal} />
-                  ))
-                ) : (
-                  Object.entries(todayTotalsByCat)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([catId, seconds]) => (
-                      <CategoryStatBar key={catId} categoryId={catId} seconds={seconds} total={todayTotal} />
-                    ))
-                )}
+          {/* Hero Metrics */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Total Time */}
+            <div className="rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 p-4 border">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                <Clock className="size-3.5" />
+                Total Time
               </div>
-            )}
-          </section>
+              <div className="text-2xl font-semibold">
+                {formatDuration(totalSeconds, timeUnit)}
+              </div>
+              {prevTotalSeconds > 0 && (
+                <div className={`flex items-center gap-1 text-xs mt-1 ${
+                  percentChange > 0 ? "text-green-600 dark:text-green-400" :
+                  percentChange < 0 ? "text-red-600 dark:text-red-400" :
+                  "text-muted-foreground"
+                }`}>
+                  {percentChange > 0 ? <TrendingUp className="size-3" /> :
+                   percentChange < 0 ? <TrendingDown className="size-3" /> :
+                   <Minus className="size-3" />}
+                  {percentChange > 0 ? "+" : ""}{percentChange}% vs last
+                </div>
+              )}
+            </div>
 
-          {/* This Week */}
-          <section className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-medium">This Week</h3>
-              <span className="text-sm text-muted-foreground">
-                Total: {formatDuration(weekTotal, timeUnit)}
-              </span>
+            {/* Streak */}
+            <div className="rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-500/5 p-4 border">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                <Flame className="size-3.5" />
+                Day Streak
+              </div>
+              <div className="text-2xl font-semibold">
+                {streak} <span className="text-base font-normal text-muted-foreground">days</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+                {streak > 0 ? (<>Keep it up! <Flame className="size-3 text-orange-500" /></>) : "Start tracking!"}
+              </div>
             </div>
-            {weekTotal === 0 ? (
-              <p className="text-muted-foreground text-sm">No activities this week.</p>
+          </div>
+
+          {/* Period Selector */}
+          <div className="flex justify-center">
+            <div className="inline-flex bg-muted rounded-lg p-1">
+              {(["today", "week", "month"] as Period[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    period === p
+                      ? "bg-background shadow-sm"
+                      : "hover:bg-background/50"
+                  }`}
+                >
+                  {p === "today" ? "Today" : p === "week" ? "Week" : "Month"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 7-Day Trend */}
+          <div className="rounded-xl border p-4">
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">Last 7 Days</h3>
+            <div className="flex items-end justify-between gap-1 h-16">
+              {dailyTotals.map((day) => {
+                const height = maxDaily > 0 ? (day.total / maxDaily) * 100 : 0;
+                const isToday = day.date === formatDate(new Date());
+                return (
+                  <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                    <div
+                      className={`w-full rounded-t transition-all ${
+                        isToday ? "bg-primary" : "bg-primary/40"
+                      }`}
+                      style={{ height: `${Math.max(height, 4)}%` }}
+                      title={`${day.date}: ${formatDuration(day.total, timeUnit)}`}
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      {["S", "M", "T", "W", "T", "F", "S"][new Date(day.date + "T00:00:00").getDay()]}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Breakdown by Type (Drill-down) */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">Breakdown</h3>
+            {totalSeconds === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No activities recorded for this period.
+              </p>
             ) : (
-              <div className="space-y-3">
-                {groupBy === "type" ? (
-                  (Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => (
-                    <TypeStatBar key={type} type={type} seconds={weekTotalsByType[type]} total={weekTotal} />
-                  ))
-                ) : (
-                  Object.entries(weekTotalsByCat)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([catId, seconds]) => (
-                      <CategoryStatBar key={catId} categoryId={catId} seconds={seconds} total={weekTotal} />
-                    ))
-                )}
+              <div className="space-y-2">
+                {(Object.keys(CATEGORY_TYPE_CONFIG) as CategoryType[]).map((type) => {
+                  const seconds = totalsByType[type];
+                  const pct = totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 0;
+                  const config = CATEGORY_TYPE_CONFIG[type];
+                  const isExpanded = expandedType === type;
+                  const typeCats = getCategoriesForType(type);
+
+                  return (
+                    <div key={type} className="rounded-lg border overflow-hidden">
+                      {/* Type header - clickable */}
+                      <button
+                        onClick={() => setExpandedType(isExpanded ? null : type)}
+                        className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="size-3 rounded-full"
+                            style={{ backgroundColor: config.color }}
+                          />
+                          <span className="font-medium">{config.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {formatDuration(seconds, timeUnit)}
+                          </span>
+                          <span className="text-xs text-muted-foreground w-10 text-right">
+                            {pct.toFixed(0)}%
+                          </span>
+                          {isExpanded ? (
+                            <ChevronUp className="size-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="size-4 text-muted-foreground" />
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Progress bar */}
+                      <div className="h-1 bg-muted">
+                        <div
+                          className="h-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: config.color }}
+                        />
+                      </div>
+
+                      {/* Expanded categories */}
+                      {isExpanded && (
+                        <div className="bg-muted/30 divide-y divide-border">
+                          {typeCats.length === 0 ? (
+                            <p className="text-sm text-muted-foreground p-3">
+                              No categories of this type
+                            </p>
+                          ) : (
+                            typeCats.map((cat) => {
+                              const catSecs = totalsByCat[cat.id] || 0;
+                              const catPct = seconds > 0 ? (catSecs / seconds) * 100 : 0;
+                              return (
+                                <div key={cat.id} className="flex items-center justify-between p-3 pl-8">
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="size-2 rounded-full"
+                                      style={{ backgroundColor: cat.color }}
+                                    />
+                                    <span className="text-sm">{cat.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">
+                                      {formatDuration(catSecs, timeUnit)}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground w-10 text-right">
+                                      {catPct.toFixed(0)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </section>
+          </div>
         </>
       )}
     </div>

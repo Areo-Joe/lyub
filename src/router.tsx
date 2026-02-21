@@ -10,7 +10,7 @@ import { Timer } from "@/components/Timer";
 import { ActivityHistory } from "@/components/ActivityHistory";
 import { Stats } from "@/components/Stats";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { SettingsDropdown } from "@/components/SettingsDropdown";
 import { Timer as TimerIcon, History, BarChart3 } from "lucide-react";
 
 // Root layout component
@@ -22,7 +22,7 @@ function RootLayout() {
         <header className="w-full py-3 px-4 border-b bg-background sticky top-0 z-10">
           <div className="max-w-md mx-auto flex items-center justify-between">
             <h1 className="text-xl font-bold">Lyubishchev</h1>
-            <ThemeToggle />
+            <SettingsDropdown />
           </div>
         </header>
 
