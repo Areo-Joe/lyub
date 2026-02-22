@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Full background for maskable icon -->
+  <rect width="512" height="512" fill="#3b82f6"/>
+  
+  <!-- Clock icon (scaled with safe zone padding - 80% of canvas) -->
+  <g transform="translate(128, 128) scale(10.67)" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 6v6l4 2"/>
+    <path d="M22 12a10 10 0 1 0-11 9.95"/>
+    <path d="m22 16-5.5 5.5L14 19"/>
+  </g>
+</svg>
+

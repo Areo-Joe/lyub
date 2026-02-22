@@ -1,0 +1,50 @@
+{
+  "name": "Lyub - Time Tracker",
+  "short_name": "Lyub",
+  "description": "Track your time using the Lyubishchev method. A minimalist time tracking app that helps you understand where your time goes.",
+  "id": "/lyub/",
+  "start_url": "/lyub/",
+  "scope": "/lyub/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Start Timer",
+      "short_name": "Start",
+      "description": "Start tracking time",
+      "url": "/lyub/#/",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Stats",
+      "short_name": "Stats",
+      "description": "View your time statistics",
+      "url": "/lyub/#/stats",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+
