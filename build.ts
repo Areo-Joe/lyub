@@ -3,6 +3,7 @@ import plugin from "bun-plugin-tailwind";
 import { existsSync, cpSync } from "fs";
 import { rm } from "fs/promises";
 import path from "path";
+import { injectManifest } from "workbox-build";
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(`
@@ -151,6 +152,43 @@ if (existsSync(publicDir)) {
   console.log("📦 Copying PWA assets from public/ to dist/");
   cpSync(publicDir, outdir, { recursive: true });
 }
+
+// Build service worker with Bun
+console.log("🔧 Building service worker...");
+const swResult = await Bun.build({
+  entrypoints: [path.join(process.cwd(), "src/sw.ts")],
+  outdir,
+  minify: true,
+  target: "browser",
+  naming: "sw-temp.js",
+});
+
+if (!swResult.success) {
+  console.error("❌ Service worker build failed:", swResult.logs);
+  process.exit(1);
+}
+
+// Inject precache manifest using Workbox
+console.log("📋 Injecting precache manifest...");
+const { count, size, warnings } = await injectManifest({
+  swSrc: path.join(outdir, "sw-temp.js"),
+  swDest: path.join(outdir, "sw.js"),
+  globDirectory: outdir,
+  globPatterns: ["**/*.{js,css,html,png,svg,json}"],
+  globIgnores: ["sw-temp.js", "sw.js", "**/*.map"],
+  // Files with hashes in names don't need cache busting
+  dontCacheBustURLsMatching: /\.[a-f0-9]{8}\./,
+  maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
+});
+
+// Clean up temp SW file
+await rm(path.join(outdir, "sw-temp.js"), { force: true });
+
+if (warnings.length > 0) {
+  console.warn("⚠️ Workbox warnings:", warnings.join("\n"));
+}
+
+console.log(`📦 Precached ${count} files (${formatFileSize(size)})`);
 
 const buildTime = (end - start).toFixed(2);
 
