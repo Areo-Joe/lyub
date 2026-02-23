@@ -27,22 +27,14 @@ if (import.meta.hot) {
 
 // Register service worker for PWA
 if ("serviceWorker" in navigator && !import.meta.hot) {
-  window.addEventListener("load", async () => {
-    try {
-      const registration = await navigator.serviceWorker.register("sw.js");
-      console.log("SW registered:", registration.scope);
-
-      // Listen for new service worker taking control
-      // When this happens, reload to get the new version
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (refreshing) return;
-        refreshing = true;
-        console.log("New SW activated, reloading for updates...");
-        window.location.reload();
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("sw.js")
+      .then((registration) => {
+        console.log("SW registered:", registration.scope);
+      })
+      .catch((error) => {
+        console.log("SW registration failed:", error);
       });
-    } catch (error) {
-      console.log("SW registration failed:", error);
-    }
   });
 }

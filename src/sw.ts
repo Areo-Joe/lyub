@@ -14,6 +14,20 @@ skipWaiting();
 // Take control of all clients immediately
 clientsClaim();
 
+// When this SW activates and takes control, reload all clients
+// This ensures users get the latest version even if the old frontend
+// code didn't have the controllerchange listener
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      clients.forEach((client) => {
+        // Navigate to current URL forces a reload with new SW in control
+        (client as WindowClient).navigate(client.url);
+      });
+    })
+  );
+});
+
 // Clean up old caches from previous versions
 cleanupOutdatedCaches();
 
