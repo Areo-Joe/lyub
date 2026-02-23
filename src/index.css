@@ -68,3 +68,21 @@ body {
   background-color: var(--background);
   color: var(--foreground);
 }
+
+/* Fix mobile viewport height - use dvh (dynamic viewport height)
+   which accounts for mobile browser chrome (address bar) */
+html,
+body,
+#root {
+  height: 100%;
+  /* Fallback for browsers that don't support dvh */
+  min-height: 100vh;
+  min-height: 100dvh;
+  /* Prevent overscroll bounce on iOS */
+  overscroll-behavior: none;
+}
+
+/* Safe area insets for notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}

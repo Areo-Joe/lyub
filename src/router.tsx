@@ -17,18 +17,20 @@ import { Timer as TimerIcon, History, BarChart3 } from "lucide-react";
 function RootLayout() {
   return (
     <ThemeProvider>
-      <div className="flex flex-col items-center min-h-screen pb-20">
+      <div className="flex flex-col h-full min-h-[100dvh]">
         {/* Header */}
-        <header className="w-full py-3 px-4 border-b bg-background sticky top-0 z-10">
+        <header className="shrink-0 w-full py-3 px-4 border-b bg-background sticky top-0 z-10">
           <div className="max-w-md mx-auto flex items-center justify-between">
             <h1 className="text-xl font-bold">Lyubishchev</h1>
             <SettingsDropdown />
           </div>
         </header>
 
-        {/* Content */}
-        <main className="flex-1 w-full max-w-md px-4 py-6">
-          <Outlet />
+        {/* Content - scrollable area between header and nav */}
+        <main className="flex-1 overflow-y-auto w-full">
+          <div className="max-w-md mx-auto px-4 py-6">
+            <Outlet />
+          </div>
         </main>
 
         {/* Bottom navigation */}
@@ -47,7 +49,7 @@ const navItems = [
 
 function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t">
+    <nav className="shrink-0 bg-background border-t pb-[env(safe-area-inset-bottom)]">
       <div className="flex justify-around items-center h-16 max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
